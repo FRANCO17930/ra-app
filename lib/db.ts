@@ -83,3 +83,52 @@ export async function deleteAsset(id: string) {
         throw error;
     }
 }
+
+export interface LabConfig {
+    labName: string;
+    markerUrl?: string;
+}
+
+export async function getLabConfig(labName: string): Promise<LabConfig | null> {
+    try {
+        const { data, error } = await supabase
+            .from('lab_configs')
+            .select('*')
+            .eq('lab_name', labName)
+            .single();
+
+        if (error) {
+            if (error.code !== 'PGRST116') { // PGRST116 is "no rows found"
+                console.error("Error fetching lab config:", error);
+            }
+            return null;
+        }
+
+        return {
+            labName: data.lab_name,
+            markerUrl: data.marker_url
+        };
+    } catch (error) {
+        console.error("Critical error in getLabConfig:", error);
+        return null;
+    }
+}
+
+export async function saveLabConfig(config: LabConfig) {
+    try {
+        const { error } = await supabase
+            .from('lab_configs')
+            .upsert({
+                lab_name: config.labName,
+                marker_url: config.markerUrl
+            }, { onConflict: 'lab_name' });
+
+        if (error) {
+            console.error("Error saving lab config:", error);
+            throw error;
+        }
+    } catch (error) {
+        console.error("Critical error in saveLabConfig:", error);
+        throw error;
+    }
+}

@@ -6,7 +6,7 @@ import { useAuth } from "@/context/auth-context";
 import { Lock, LogIn, Plus, Trash2, Video, Image as ImageIcon, Link as LinkIcon, Save, QrCode as QrIcon, HelpCircle, Upload, Loader2 } from "lucide-react";
 import { LABORATORIES, ARAsset } from "@/lib/labs-config";
 import { LabQR } from "@/components/lab-qr";
-import { getAssets, saveAsset, deleteAsset } from "@/lib/db";
+import { getAssets, saveAsset, deleteAsset, getLabConfig, saveLabConfig, LabConfig } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 
 export default function AdminPage() {
@@ -28,6 +28,59 @@ export default function AdminPage() {
         const data = await getAssets();
         setAssets(data);
     }
+
+    const [labConfigs, setLabConfigs] = useState<{ [key: string]: LabConfig }>({});
+    const [markerFiles, setMarkerFiles] = useState<{ [key: string]: File | null }>({});
+    const [isUploadingMarker, setIsUploadingMarker] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            loadLabConfigs();
+        }
+    }, [isAuthenticated]);
+
+    async function loadLabConfigs() {
+        const configs: { [key: string]: LabConfig } = {};
+        for (const lab of LABORATORIES) {
+            const config = await getLabConfig(lab);
+            if (config) {
+                configs[lab] = config;
+            }
+        }
+        setLabConfigs(configs);
+    }
+
+    const handleUploadMarker = async (lab: string) => {
+        const file = markerFiles[lab];
+        if (!file) return;
+
+        setIsUploadingMarker(lab);
+        try {
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${lab.toLowerCase().replace(/\s+/g, "_")}_${Math.random().toString(36).substr(2, 5)}.${fileExt}`;
+            const filePath = `markers/${fileName}`;
+
+            const { data, error } = await supabase.storage
+                .from('configs') // We'll use a 'configs' or similar bucket
+                .upload(filePath, file);
+
+            if (error) throw error;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('configs')
+                .getPublicUrl(filePath);
+
+            await saveLabConfig({ labName: lab, markerUrl: publicUrl });
+            await loadLabConfigs();
+            setMarkerFiles({ ...markerFiles, [lab]: null });
+            alert("Marcador (.mind) actualizado para " + lab);
+        } catch (err: any) {
+            console.error("Error uploading marker:", err);
+            alert("Error: " + err.message);
+        } finally {
+            setIsUploadingMarker(null);
+        }
+    };
 
     const [newAsset, setNewAsset] = useState<Partial<ARAsset>>({
         lab: LABORATORIES[0],
@@ -279,7 +332,41 @@ export default function AdminPage() {
                         </h2>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {LABORATORIES.slice(0, 4).map(lab => (
-                                <LabQR key={lab} labName={lab} />
+                                <div key={lab} className="space-y-4">
+                                    <LabQR labName={lab} />
+                                    <div className="glass p-4 rounded-xl border-dashed border-slate-800">
+                                        <div className="text-[10px] text-slate-500 uppercase font-bold mb-2">Marcador (.mind)</div>
+                                        <div className="flex flex-col gap-2">
+                                            {labConfigs[lab]?.markerUrl ? (
+                                                <div className="text-[10px] text-green-500 flex items-center gap-1 mb-1">
+                                                    <Save className="w-3 h-3" /> Marcador personalizado activo
+                                                </div>
+                                            ) : (
+                                                <div className="text-[10px] text-slate-500 italic mb-1">Usando marcador demo</div>
+                                            )}
+                                            <div className="flex gap-2">
+                                                <label className="flex-1 bg-slate-950 border border-slate-800 rounded-lg p-2 text-[10px] cursor-pointer hover:border-blue-500 transition-all text-center overflow-hidden whitespace-nowrap">
+                                                    {markerFiles[lab] ? markerFiles[lab]?.name : "Subir .mind"}
+                                                    <input
+                                                        type="file"
+                                                        accept=".mind"
+                                                        className="hidden"
+                                                        onChange={(e) => setMarkerFiles({ ...markerFiles, [lab]: e.target.files ? e.target.files[0] : null })}
+                                                    />
+                                                </label>
+                                                {markerFiles[lab] && (
+                                                    <button
+                                                        onClick={() => handleUploadMarker(lab)}
+                                                        disabled={isUploadingMarker === lab}
+                                                        className="bg-blue-600 px-3 rounded-lg hover:bg-blue-500 transition-all disabled:bg-slate-700"
+                                                    >
+                                                        {isUploadingMarker === lab ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-white" />}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             ))}
                         </div>
                         <p className="text-[10px] text-slate-500 mt-2 px-2 italic">

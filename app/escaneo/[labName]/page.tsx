@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ARAsset } from "@/lib/labs-config";
 import { Loader2, Camera, RefreshCw, X } from "lucide-react";
-import { getAssets } from "@/lib/db";
+import { getAssets, getLabConfig } from "@/lib/db";
 
 export default function EscaneoPage() {
     const params = useParams();
@@ -14,11 +14,18 @@ export default function EscaneoPage() {
     const [loading, setLoading] = useState(true);
     const [assets, setAssets] = useState<ARAsset[]>([]);
     const [arReady, setArReady] = useState(false);
+    const [markerUrl, setMarkerUrl] = useState("https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind");
 
     useEffect(() => {
         async function loadData() {
-            const data = await getAssets();
-            setAssets(data.filter((a: ARAsset) => a.lab === labName));
+            const [assetsData, configData] = await Promise.all([
+                getAssets(),
+                getLabConfig(labName)
+            ]);
+            setAssets(assetsData.filter((a: ARAsset) => a.lab === labName));
+            if (configData?.markerUrl) {
+                setMarkerUrl(configData.markerUrl);
+            }
         }
         loadData();
 
@@ -113,7 +120,7 @@ export default function EscaneoPage() {
                         dangerouslySetInnerHTML={{
                             __html: `
                         <a-scene
-                            mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: yes;"
+                            mindar-image="imageTargetSrc: ${markerUrl}; autoStart: true; uiLoading: no; uiError: no; uiScanning: yes;"
                             color-space="sRGB"
                             embedded
                             renderer="colorManagement: true, physicallyCorrectLights"
