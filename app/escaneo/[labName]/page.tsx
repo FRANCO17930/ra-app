@@ -87,12 +87,27 @@ export default function EscaneoPage() {
                 </div>
             )}
 
+            {!loading && !arReady && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md z-[110]">
+                    <div className="p-8 bg-slate-900 border border-white/10 rounded-3xl text-center max-w-sm mx-auto shadow-2xl">
+                        <Camera className="w-16 h-16 text-blue-500 mx-auto mb-6" />
+                        <h2 className="text-2xl font-bold text-white mb-2">¿Listo para Escanear?</h2>
+                        <p className="text-slate-400 text-sm mb-8">
+                            Para ver el contenido AR, necesitamos activar la cámara y el audio.
+                            Apunta al marcador una vez iniciada.
+                        </p>
+                        <button
+                            onClick={() => setArReady(true)}
+                            className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl transition-all scale-100 hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/25"
+                        >
+                            Iniciar Experiencia AR
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {arReady && (
                 <div className="w-full h-full">
-                    {/* 
-                      Bypassing JSX validation for A-Frame components by using dangerouslySetInnerHTML.
-                      This ensures a stable build for Vercel without JSX/TS element errors.
-                    */}
                     <div
                         className="w-full h-full"
                         dangerouslySetInnerHTML={{
@@ -131,6 +146,7 @@ export default function EscaneoPage() {
                                     width="1"
                                     rotation="0 0 0"
                                     class="clickable"
+                                    data-video-id="vid-demo"
                                 ></a-video>
                             </a-entity>
 
@@ -142,6 +158,8 @@ export default function EscaneoPage() {
                                         height="1"
                                         width="1"
                                         rotation="0 0 0"
+                                        class="clickable"
+                                        data-video-id="vid-${i}"
                                     ></a-video>
                                 </a-entity>
                             `).join('')}
@@ -151,9 +169,17 @@ export default function EscaneoPage() {
                     <script dangerouslySetInnerHTML={{
                         __html: `
                         document.addEventListener('click', (e) => {
-                            if (e.target.closest('.clickable')) {
-                                const v = document.querySelector('#vid-demo');
-                                if (v.paused) v.play(); else v.pause();
+                            const arVideo = e.target.closest('.clickable');
+                            if (arVideo) {
+                                const videoId = arVideo.getAttribute('data-video-id');
+                                const v = document.querySelector('#' + videoId);
+                                if (v) {
+                                    if (v.paused) {
+                                        v.play().catch(err => console.error("Error playing video:", err));
+                                    } else {
+                                        v.pause();
+                                    }
+                                }
                             }
                         });
                         `
