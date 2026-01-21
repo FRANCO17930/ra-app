@@ -8,8 +8,14 @@ export function LabQR({ labName }: { labName: string }) {
     const [qrUrl, setQrUrl] = useState("");
     const [copied, setCopied] = useState(false);
 
-    const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const labUrl = labName === "Universal" ? `${baseUrl}/escaneo` : `${baseUrl}/escaneo/${encodeURIComponent(labName)}`;
+    // URL de producción para que el QR sea escaneable desde el móvil
+    const productionUrl = "https://ra-app-ar.vercel.app";
+
+    const effectiveBaseUrl = (typeof window !== "undefined" && window.location.hostname === 'localhost')
+        ? productionUrl
+        : (typeof window !== "undefined" ? window.location.origin : "");
+
+    const labUrl = labName === "Universal" ? `${effectiveBaseUrl}/escaneo` : `${effectiveBaseUrl}/escaneo/${encodeURIComponent(labName)}`;
 
     useEffect(() => {
         QRCode.toDataURL(labUrl, {
