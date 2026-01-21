@@ -9,7 +9,7 @@ export function LabQR({ labName }: { labName: string }) {
     const [copied, setCopied] = useState(false);
 
     const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-    const labUrl = `${baseUrl}/escaneo/${encodeURIComponent(labName)}`;
+    const labUrl = labName === "Universal" ? `${baseUrl}/escaneo` : `${baseUrl}/escaneo/${encodeURIComponent(labName)}`;
 
     useEffect(() => {
         QRCode.toDataURL(labUrl, {
